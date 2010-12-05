@@ -1,0 +1,14 @@
+ABOUT
+============================
+
+Lurkmost is a script to download all images from a thread on a given *chan.
+
+Currently supports:
+* Downloading images from 4chan, 4chanarchive
+
+Features to be added:
+* add database of threads, run every n seconds to download new files only
+* add 404 detection, check return code
+* add browser integration to python service, allowing a user to tell
+    the program to save threads relevant to your interests via mouseclick.
+
