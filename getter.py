@@ -15,6 +15,9 @@ supported_boards = ['4chan',
 #TODO: allow wait to be specified
 #TODO: output to tempfile, grep or re search file
 
+#TODO: Make class for each *chan retriever, so we can handle class variables like
+#       needing to prepend hosts, etc.
+
 def usage():
     print "\nUsage:\n\tpython getter.py [options] [thread url]\n"
 
@@ -32,15 +35,24 @@ def processUrl(url):
 
     elif url.find('4chan') != -1:
         # thread url is of form: http://boards.4chan.org/co/res/21649743
+        restring = "res/[0-9]+"
+        r = re.compile(restring)
+        match = r.search(url)
+
         siteName = "4chan"
-        resting = "res/[0-9]+"
         grepstring = "'http://images.4chan.org/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
+        threadId = int(url[match.start()+4:match.end()])
    
     elif url.find('wakachan') != -1:
         # thread url is of form: http://www.wakachan.org/yuu/res/8733.html
+        restring = "res/[0-9]+"
+        r = re.compile(restring)
+        match = r.search(url)
+
         siteName = "wakachan"
-        restring = "res/[0-9]"
-        grepstring = "'http://wakachan.org/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
+        #grepstring = "'http://wakachan.org/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
+        grepstring = "'/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
+        threadId = int(url[match.start()+4:match.end()])
         # http://wakachan.org/yuu/res/7182.html
         # http://wakachan.org/yuu/src/1255816373491.jpg
         # wget -O- http://wakachan.org/yuu/res/7182.html | egrep "/[a-z]+/res/([0-9]*).(jpg|png|gif)" > out.txt
@@ -61,11 +73,10 @@ def dispatch(url):
     #grepString = getGrepString(url)
     #threadname = getThreadName(url)
 
-    os.system("wget -O- \"%s\" | egrep %s -o | sort -u | xargs wget -nd --continue --wait 2" % (url, grepString)) 
+    #os.system("wget -O- \"%s\" | egrep %s -o | sort -u | xargs wget -nd --continue --wait 2" % (url, grepString)) 
+    os.system("wget -O- \"%s\" | egrep %s -o | sort -u " % (url, grepString)) 
 
     # TODO: if debug, do this instead
-    #print grepstring
-    #os.system("wget -O- \"%s\" | egrep %s -o | sort -u | xargs wget -nd --continue --wait 2" % (url, grepstring))
 
 def main():
     # parse command line options
