@@ -2,21 +2,19 @@
 import os
 import sys
 import getopt
-import re
+
+from handlers import *
 
 # Globals
 DEBUG=False
+TMPDIR = 'tmp'
 
 # Supported sites
-supported_boards = ['4chan',
+supported_boards = ['2chan',
+                    '4chan',
                     '4chanarchive',
+                    'iichan',
                     'wakachan']
-
-#TODO: allow wait to be specified
-#TODO: output to tempfile, grep or re search file
-
-#TODO: Make class for each *chan retriever, so we can handle class variables like
-#       needing to prepend hosts, etc.
 
 def usage():
     print "\nUsage:\n\tpython getter.py [options] [thread url]\n"
@@ -24,39 +22,19 @@ def usage():
 def processUrl(url):
     # Returns a tuple of the thread id and grepstring
     if url.find('archive') != -1:
-        # thread url is of form: http://4chanarchive.org/brchive/dspl_thread.php5?thread_id=21048406&x=Space+Ghost+Is+Back+On+The+Air2C+Due+To+A+TechnicalityTimewarp
-        restring = "thread_id=[0-9]+"
-        r = re.compile(restring)
-        match = r.search(url)
-
-        siteName = "4chanarchive"
-        grepstring = "'http://4chanarchive.org/images/[a-z0-9]+/[a-z0-9]+/([0-9]*).(jpg|png|gif)'"
-        threadId = int(url[match.start()+10:match.end()])
+        handler = FourChanArchiveHandler(url)   
 
     elif url.find('4chan') != -1:
-        # thread url is of form: http://boards.4chan.org/co/res/21649743
-        restring = "res/[0-9]+"
-        r = re.compile(restring)
-        match = r.search(url)
+        handler = FourChanHandler(url)
 
-        siteName = "4chan"
-        grepstring = "'http://images.4chan.org/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
-        threadId = int(url[match.start()+4:match.end()])
+    elif url.find('2chan') != -1:
+        handler = TwoChanHandler(url)
    
     elif url.find('wakachan') != -1:
-        # thread url is of form: http://www.wakachan.org/yuu/res/8733.html
-        restring = "res/[0-9]+"
-        r = re.compile(restring)
-        match = r.search(url)
+        handler = WakaChanHandler(url)
 
-        siteName = "wakachan"
-        #grepstring = "'http://wakachan.org/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
-        grepstring = "'/[a-z0-9]+/src/([0-9]*).(jpg|png|gif)'"
-        threadId = int(url[match.start()+4:match.end()])
-        # http://wakachan.org/yuu/res/7182.html
-        # http://wakachan.org/yuu/src/1255816373491.jpg
-        # wget -O- http://wakachan.org/yuu/res/7182.html | egrep "/[a-z]+/res/([0-9]*).(jpg|png|gif)" > out.txt
-        # blarg, this all may show up on the same line, and need to be parsed out further?
+    elif url.find('iichan') != -1:
+        handler = IiChanHandler(url)
 
     else:
         print "Specified URL appears does not appear to be valid. Supported sites:"
@@ -64,21 +42,31 @@ def processUrl(url):
             print board
         sys.exit(2)
 
-    retTuple = (siteName, threadId, grepstring)
-    print "Downloading %s thread id %d\ngrepstring is: ***%s***" % retTuple
-    return retTuple
+    print "Downloading %s thread id %d\ngrepstring is: ***%s***" % (handler.siteName, handler.threadId, handler.grepstring)
+    return handler
 
 def dispatch(url):
-    siteName, threadId, grepString = processUrl(url)
-    #grepString = getGrepString(url)
-    #threadname = getThreadName(url)
+    handler = processUrl(url)
+    handler.makeImageList()
 
-    #os.system("wget -O- \"%s\" | egrep %s -o | sort -u | xargs wget -nd --continue --wait 2" % (url, grepString)) 
-    os.system("wget -O- \"%s\" | egrep %s -o | sort -u " % (url, grepString)) 
-
-    # TODO: if debug, do this instead
+    # TODO
+    # For now, do this here since each run will grab one thread.
+    # This should be moved to the handler's init once this becomes
+    #   a service to run at intervals.
+    #if not os.path.exists('%s' % handler.threadId):
+    #    os.makedirs(str(handler.threadId))
+    
+    if DEBUG:
+        print handler.imageLinks
+    else:
+        handler.download()
+        #os.system("wget -O- \"%s\" | egrep %s -o | sort -u | xargs wget -nd --continue --wait 2" % (handler.url, handler.grepString)) 
 
 def main():
+    # Create temp directory if it doesn't exist
+    if not os.path.exists('tmp'):
+        os.makedirs('tmp')
+
     # parse command line options
     try:
         opts, args = getopt.getopt(sys.argv[1:], "dh",["help"])
@@ -105,7 +93,7 @@ def main():
         raise Exception, "Need at least one argument!"
 
     for arg in args:
-        print arg
+        #print arg
         dispatch(arg)
 
 if __name__ == "__main__":
